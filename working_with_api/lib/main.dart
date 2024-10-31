@@ -2,44 +2,21 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'product.dart'; // Import the Product model
 
+Future<List<Product>> fetchProducts() async {
+  final response = await http.get(Uri.parse('https://dummyjson.com/products'));
 
-Future fetchCourse() async {
-  final response = await http.get(Uri.parse('https://rushil111.pythonanywhere.com/course'));
-
-  // Appropriate action depending upon the
-  // server response
   if (response.statusCode == 200) {
-    return Course.fromJson(jsonDecode(response.body) as Map);
+    final data = jsonDecode(response.body);
+    List<Product> products = (data['products'] as List)
+        .map((item) => Product.fromJson(item))
+        .toList();
+    return products;
   } else {
-    throw Exception('Failed to load Data!');
+    throw Exception('Failed to load products!');
   }
 }
-
-class Course {
-
-  final String coursecode;
-  final String coursename;
-  final String cincharge;
-
-  const Course({
-    required this.coursecode,
-    required this.coursename,
-    required this.cincharge,
-
-  });
-
-  factory Course.fromJson(Map json) {
-    return Course(
-
-      coursecode: json['coursecode'] as String,
-      coursename: json['coursename'] as String,
-      cincharge: json['cincharge'] as String,
-    );
-  }
-}
-
-
 
 void main() {
   runApp(MyApp());
@@ -50,39 +27,49 @@ class MyApp extends StatefulWidget {
   State createState() => _MyAppState();
 }
 
-
-
-class _MyAppState extends State {
-  late Future futureCourse;
+class _MyAppState extends State<MyApp> {
+  late Future<List<Product>> futureProducts;
 
   @override
   void initState() {
     super.initState();
-    futureCourse = fetchCourse();
+    futureProducts = fetchProducts();
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Fetching Data',
+      title: 'Product Fetching App',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
       home: Scaffold(
         appBar: AppBar(
-          title: Text('W3TechBlog'),
+          title: Text('Products'),
         ),
         body: Center(
-          child: FutureBuilder(
-            future: futureCourse,
+          child: FutureBuilder<List<Product>>(
+            future: futureProducts,
             builder: (context, snapshot) {
-              if (snapshot.hasData) {
-
-                return (Text(snapshot.data!.cincharge));
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return CircularProgressIndicator();
               } else if (snapshot.hasError) {
                 return Text("${snapshot.error}");
+              } else if (snapshot.hasData) {
+                final products = snapshot.data!;
+                return ListView.builder(
+                  itemCount: products.length,
+                  itemBuilder: (context, index) {
+                    return ListTile(
+                      title: Text(products[index].title),
+                      subtitle: Text(products[index].description),
+                      trailing: Text('\$${products[index].price}'),
+                    );
+                  },
+                );
+              } else {
+                return Text("No products found");
               }
-              return CircularProgressIndicator();
             },
           ),
         ),
